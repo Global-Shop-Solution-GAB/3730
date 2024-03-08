@@ -1,0 +1,99 @@
+Program.Sub.ScreenSU.Start
+gui.F_Priority_Booster..create
+gui.F_Priority_Booster..caption("Priority Booster")
+gui.F_Priority_Booster..size(3550,2000)
+gui.F_Priority_Booster..position(0,0)
+gui.F_Priority_Booster..event(unload,f_priority_booster_unload)
+gui.F_Priority_Booster..alwaysontop(False)
+gui.F_Priority_Booster..fontname("Arial")
+gui.F_Priority_Booster..fontsize(8)
+gui.F_Priority_Booster..forecolor(0)
+gui.F_Priority_Booster..fontstyle(,,,,)
+gui.F_Priority_Booster..BackColor(-2147483633)
+gui.F_Priority_Booster..controlbox(True)
+gui.F_Priority_Booster..maxbutton(False)
+gui.F_Priority_Booster..minbutton(True)
+gui.F_Priority_Booster..mousepointer(0)
+gui.F_Priority_Booster..moveable(True)
+gui.F_Priority_Booster..sizeable(False)
+gui.F_Priority_Booster..ShowInTaskBar(True)
+gui.F_Priority_Booster..titlebar(True)
+gui.F_Priority_Booster.lbl1.create(label,"Enter the booster you would like added to increase priority on jobs that have started",True,3165,450,1,200,200,True,0,Arial,8,-2147483633,0)
+gui.F_Priority_Booster.txtBooster.create(textbox,"",True,2000,300,0,200,600,True,0,Arial,8,-2147483643,1)
+gui.F_Priority_Booster.txtBooster.numericonly(2)
+gui.F_Priority_Booster.txtBooster.maxLength(3)
+gui.F_Priority_Booster.cmdSave.create(button)
+gui.F_Priority_Booster.cmdSave.caption("Save")
+gui.F_Priority_Booster.cmdSave.visible(True)
+gui.F_Priority_Booster.cmdSave.size(855,375)
+gui.F_Priority_Booster.cmdSave.zorder(0)
+gui.F_Priority_Booster.cmdSave.position(200,1000)
+gui.F_Priority_Booster.cmdSave.enabled(True)
+gui.F_Priority_Booster.cmdSave.fontname("Arial")
+gui.F_Priority_Booster.cmdSave.fontsize(8)
+gui.F_Priority_Booster.cmdSave.event(click,cmdsave_click)
+
+
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+'Coded by: SMC
+'Project Start Date: 1/10/2011
+'Hooks:
+'  Custom Menu Item
+'Notes:
+'  Quote 1988 For Customer Connecticut Spring and Stamping
+'
+'  A GAB program will fire off the Task Scheduler to add a "user defined" booster to the Base Priority on all open jobs where Actual Time of Setup or Runtime on any Labor or Outside Services only (issued material is not considered)
+'  is greater than zero.  It will also return the Base Priority to its original value if the condition is no longer met.
+'  This program will also be able to run off a custom menu item.
+'  At the end of this GAB script, it will invoke #83.  Thus the #83 APS routine will need to be turned off on the Task Scheduler when the GAB script is active.
+'  Two custom tables will be created, ATG_WO_PRIORITIES ( WO, SUFFIX, PRIORITY) and ATG_WO_BOOSTER (PRIORITY)
+'  A maintenance program will be created to manage the "Priority Booster", which is the amount that will be added to the base priority for jobs that have been started.  The amount will be recorded in ATG_WO_BOOSTER.
+'  A GAB script firing of the Task Scheduler will loop through all open jobs.  For each job, it will loop through JOB_OPERATIONS to check to see if Setup or Runtime on any Labor or Outside Services lines only is greater than 0.
+'  If this is the case, a record will be added to ATG_WO_PRIORITIES, including the current Priority.  After the record is written, the new priority on the job = old priority + priority booster.
+'  For any jobs where this condition is no longer met, the priority will return to the old priority and the record will be removed from ATG_WO_PRIORITIES.
+'  Used in conjunction with ATG_Boost_Priority_Maint.gas
+
+
+F.ODBC.Connection!conx.OpenConnection(V.Ambient.PDSN,V.Ambient.PUser,V.Ambient.PPass)
+F.Intrinsic.Control.CallSub(Populate)
+
+Program.Sub.Main.End
+
+program.sub.f_priority_booster_unload.start
+F.ODBC.Connection!conx.Close
+F.Intrinsic.Control.End
+
+program.sub.f_priority_booster_unload.end
+
+program.sub.cmdsave_click.start
+F.ODBC.Connection!conx.OpenRecordsetRW("rstBooster","SELECT PRIORITY FROM ATG_3730_WO_BOOSTER")
+F.Intrinsic.Control.If(V.ODBC.conx!rstBooster.EOF,=,True)
+	F.ODBC.conx!rstBooster.AddNew
+F.Intrinsic.Control.EndIf
+F.ODBC.conx!rstBooster.Set!PRIORITY(V.Screen.F_Priority_Booster!txtBooster.Text)
+F.ODBC.conx!rstBooster.Update
+
+F.ODBC.conx!rstBooster.Close
+
+F.Intrinsic.Control.CallSub(F_priority_booster_unload)
+
+program.sub.cmdsave_click.end
+
+Program.Sub.Populate.Start
+F.ODBC.Connection!conx.OpenRecordsetRO("rstBooster","SELECT PRIORITY FROM ATG_3730_WO_BOOSTER")
+F.Intrinsic.Control.If(V.ODBC.conx!rstBooster.EOF,<>,True)
+	Gui.F_Priority_Booster.txtBooster.Text(V.ODBC.conx!rstBooster.FieldValTrim!PRIORITY)
+F.Intrinsic.Control.EndIf
+F.ODBC.conx!rstBooster.Close
+
+Gui.F_Priority_Booster..Show
+
+Program.Sub.Populate.End
+
+
